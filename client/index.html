@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- blocks external scripts/styles/frames so injected
+         markup can't load code. NOT a defense against the server that ships this
+         page — that needs the reproducible signed artifact (threat model, pilot
+         gate). connect-src stays open because ?server= picks the API host;
+         wasm-unsafe-eval is required by libsodium's WebAssembly build. -->
+    <meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src *; object-src 'none'; base-uri 'none'; form-action 'none'" />
+    <title>Tallystick case management — PROTOTYPE (synthetic data only)</title>
+    <style>
+      /* Fir scheme (design canvas "Tallystick Home Panels"):
+         dark green chrome, light work area, semantic colors unchanged. */
+      :root { font-family: system-ui, sans-serif; }
+      body { margin: 0; background: #eef2ee; color: #1a1a1a; }
+      a { color: #2e6b4f; } a:hover { color: #17251e; }
+      header.top { background: #0e1a14; color: #eee; padding: 0.6rem 1rem; font-size: 0.9rem; }
+      header.top .warn { color: #ffb3b3; font-weight: 600; }
+      main { margin: 0; }
+      h1 { font-size: 1.3rem; } h2 { font-size: 1.05rem; margin-top: 1.6rem; }
+      h2:first-child, .card h2:first-child { margin-top: 0; }
+      button { white-space: nowrap; padding: 0.45rem 0.9rem; margin: 0.2rem 0.3rem 0.2rem 0; cursor: pointer;
+        background: #ffffff; border: 1px solid #bbbbbb; border-radius: 4px; color: #1a1a1a; font-size: 0.85rem; }
+      button:hover:not(:disabled) { border-color: #2e6b4f; }
+      button:disabled { cursor: default; opacity: 0.55; }
+      button.btn-primary { background: #2e6b4f; border-color: #2e6b4f; color: #ffffff; font-weight: 600; }
+      button.btn-primary:disabled { background: #b9cfc2; border-color: #b9cfc2; opacity: 1; }
+      input, select { padding: 0.5rem 0.6rem; margin: 0.2rem 0; width: 100%; max-width: 26rem;
+        box-sizing: border-box; border: 1px solid #bbbbbb; border-radius: 4px; font-size: 0.9rem; background: #fff; }
+      label { display: block; margin-top: 0.6rem; font-size: 0.85rem; font-weight: 600; }
+      .card { background: #fff; border: 1px solid #dddddd; border-radius: 6px; padding: 1rem; margin: 0.8rem 0; }
+      .mono { font-family: ui-monospace, monospace; word-break: break-all; }
+      .code-block { font-family: ui-monospace, monospace; font-size: 1.05rem; letter-spacing: 0.05em;
+        background: #f0f0ee; border: 1px dashed #999; padding: 0.8rem; margin: 0.5rem 0; word-break: break-all; }
+      .error { background: #fdd; border: 1px solid #c66; padding: 0.6rem 0.9rem; border-radius: 4px; }
+      .halted { background: #c0392b; color: #fff; padding: 0.8rem 1rem; font-weight: 700; }
+      .ok { color: #1a7a3a; } .muted { color: #777; font-size: 0.85rem; }
+      .badge { display: inline-block; background: #3a7a5b; color: #fff; border-radius: 3px;
+        padding: 0.1rem 0.45rem; font-size: 0.75rem; margin-left: 0.4rem; }
+      .badge.updated { background: #1a7a3a; }
+      table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+      td, th { border-bottom: 1px solid #e5e5e5; padding: 0.4rem 0.5rem; text-align: left; }
+
+      /* ---- app shell: dark-fir sidebar + light work area ---- */
+      .shell { display: flex; min-height: calc(100vh - 2.4rem); }
+      .sidebar { width: 200px; flex-shrink: 0; background: #17251e; border-right: 1px solid #26362d;
+        display: flex; flex-direction: column; }
+      .side-head { padding: 14px 16px 12px 16px; border-bottom: 1px solid #26362d; }
+      .side-head .wordmark { font-weight: 700; font-size: 15px; color: #ffffff; }
+      .side-head .orgline { color: #7f9188; font-size: 12px; font-family: ui-monospace, monospace; }
+      .side-nav { padding: 8px 0; }
+      .nav-item { padding: 9px 16px 9px 19px; font-size: 14px; color: #93a59a; cursor: pointer;
+        display: flex; justify-content: space-between; align-items: center; }
+      .nav-item:hover { color: #d8e2da; }
+      .nav-item.active { padding-left: 16px; border-left: 3px solid #57b184; background: #22352a;
+        color: #ffffff; font-weight: 600; }
+      .nav-item .count { background: #b8860b; color: #fff; border-radius: 8px; padding: 1px 7px;
+        font-size: 11px; font-weight: 600; margin-left: 6px; }
+      .side-foot { margin-top: auto; border-top: 1px solid #26362d; padding: 12px 16px; }
+      .side-foot .name { font-weight: 700; font-size: 14px; color: #ffffff; }
+      .side-link { font-size: 13px; color: #8fd0ae; cursor: pointer; margin-top: 6px; }
+      .side-link:hover { color: #c1e8d2; }
+      .side-note { color: #7f9188; font-size: 12px; padding: 12px 16px; margin-top: auto; }
+      .content { flex-grow: 1; padding: 20px 28px; min-width: 0; }
+      .content-narrow { max-width: 700px; }
+      .content-wide { max-width: 960px; }
+      .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+      .grid2 .card { margin: 0; }
+      .case-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e5e5e5; }
+      .case-row:last-child { border-bottom: none; }
+      .case-row .case-label { font-weight: 700; font-size: 0.95rem; }
+      .narrow { max-width: 560px; margin: 2.5rem auto; padding: 0 1rem; }
+      details.section { border-top: 1px solid #e5e5e5; padding: 0.5rem 0; }
+      details.sec > summary { cursor: pointer; list-style: none; }
+      details.sec > summary::-webkit-details-marker { display: none; }
+      details.sec > summary::before { content: "▸"; display: inline-block; color: #55665c;
+        font-size: 1.3em; line-height: 1; vertical-align: -0.08em;
+        margin: 0 0.55rem 0 0.3rem; transition: transform 0.15s ease; }
+      details.sec[open] > summary::before { transform: rotate(90deg); }
+      details.sec > summary h2 { display: inline; margin: 0; }
+      details.sec > summary .count-pill { display: inline-block; background: #55665c; color: #fff;
+        border-radius: 8px; padding: 0.05rem 0.5rem; font-size: 0.75rem; margin-left: 0.4rem; }
+      details.sec[open] > summary { margin-bottom: 0.5rem; }
+      .note-view { white-space: pre-wrap; word-break: break-word; padding: 0.5rem 0.7rem;
+        background: #fafaf8; border: 1px solid #eeeeea; border-radius: 4px; margin: 0.3rem 0 0.1rem 0; }
+      details.section > summary { cursor: pointer; font-size: 0.9rem; font-weight: 600; padding-left: 0.3rem; }
+      details.section > summary .muted { font-weight: 400; }
+
+      /* boot rail step states */
+      .step-done { color: #8fd0ae; }
+      .step-sub { padding: 4px 16px 4px 30px; font-size: 12px; color: #93a59a; }
+      .step-sub.done { color: #8fd0ae; }
+      .step-sub.current { color: #ffffff; }
+
+      .history-panel { border-left: 3px solid #ddd; margin: 0.2rem 0 0.8rem; padding-left: 0.7rem; }
+      .history-panel details { margin: 0.15rem 0; font-size: 0.85rem; }
+      .history-panel summary { cursor: pointer; color: #555; padding-left: 0.3rem; }
+      .history-panel ins { background: #e2f3e2; text-decoration: none; padding: 0 0.15rem; }
+      .history-panel del { background: #fbe3e4; padding: 0 0.15rem; }
+      .history-panel pre { background: #f0f0ee; padding: 0.5rem; margin: 0.3rem 0;
+        white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, monospace; }
+      .merge-note { background: #fff8e1; border: 1px solid #e0c060; border-radius: 4px;
+        padding: 0.4rem 0.7rem; font-size: 0.85rem; }
+      #toasts { position: fixed; right: 1rem; bottom: 1rem; z-index: 10; }
+      .toast { background: #17251e; color: #eee; border-radius: 4px; padding: 0.5rem 0.9rem;
+        margin-top: 0.4rem; font-size: 0.85rem; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
+      button.ghost-btn { background: none; border: none; box-shadow: none; cursor: pointer;
+        padding: 0.1rem 0.35rem; font-size: 1rem; color: #5b6672; }
+      button.ghost-btn:hover { color: #232a31; background: rgba(0,0,0,0.05); border-radius: 4px; }
+      #print-slot { display: none; }
+      @media print {
+        body.print-mode #app, body.print-mode header.top { display: none; }
+        body.print-mode #print-slot { display: block; font-family: ui-monospace, monospace; }
+      }
+    </style>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <header class="top">
+      Tallystick case management — <span class="warn">PROTOTYPE · NOT AUDITED · SYNTHETIC DATA ONLY</span>
+    </header>
+    <main id="app">Loading cryptography…</main>
+    <div id="print-slot"></div>
+  </body>
+</html>

@@ -1,6 +1,6 @@
 # Tallystick
 
-**End-to-end encrypted case management for small advocacy organizations** — immigration legal aid, domestic-violence services, and other groups whose case files could endanger people if exposed.
+**End-to-end encrypted case management for small advocacy organizations** — immigration legal aid, domestic-violence services, and other groups whose case files could endanger people if exposed. Conventional case-management tools can read their customers' data, so a breach of the vendor can expose the case files. Tallystick's server holds case content only as ciphertext it cannot read — the keys stay with the organization and its members, never the vendor.
 
 > **Status: research prototype · not audited · synthetic data only.**
 > Tallystick is not ready for real constituent data. This is a prototype: it has not been independently audited.

@@ -29,6 +29,7 @@ End-to-end encrypted case management for small advocacy orgs. Research prototype
 - §10 lists decisions that must not be quietly reversed. Flag any change that touches one.
 - §11 gaps are removed only when fixed with a test.
 - Bump the version and date at the top of the threat model when its content changes.
+- Claude Code users: run `/security-check` (`.claude/skills/security-check/`) before opening a PR that touches `server/`, `shared/` or client flows. Other agents: follow the steps in that file.
 
 ## Public repo hygiene
 This repository is public. Commits, comments and docs must not reference files or documents outside this repository.

@@ -3,6 +3,7 @@ name: security-check
 description: Independent check that Tallystick's code still matches its threat model. Use after changes to server/, shared/ or client flows, before opening a security-relevant PR, or when asked "do the security assertions still hold?" or "is the CAN-see table accurate?"
 context: fork
 agent: general-purpose
+disallowed-tools: Edit, Write, NotebookEdit
 ---
 
 # Tallystick security check

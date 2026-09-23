@@ -11,6 +11,12 @@ You are reviewing code you did not write. Be skeptical: the job is to find where
 
 All paths below are relative to the repository root (the folder that contains this `.claude/` directory), not the session's working directory.
 
+**How to run commands.** Work out the repository root's absolute path once, then:
+- Inspect files with the Read, Grep and Glob tools, not shell commands like `cat`, `wc`, `ls`, `find` or `git ls-files` with globs.
+- Run git as `git -C <absolute repo root> …`. Never `cd` first.
+- Run npm as `npm --prefix <absolute repo root>/<package> …`. Never `cd` first.
+- Write every path literally: no variables, `$(…)`, globs or pipes that build paths.
+
 Scope: $ARGUMENTS (if empty, review the current branch's changes against `main`, plus a full pass over §6).
 
 ## Steps
@@ -35,7 +41,7 @@ Scope: $ARGUMENTS (if empty, review the current branch's changes against `main`,
 
 5. **Check the other claims.** Spot-check §1 and §7 against the code: keys never leave the client unencrypted, the server never decrypts, search stays local, no per-record read API exists.
 
-6. **Run the tests.** Run `npm test --workspaces` and `npm run typecheck --workspaces`. If the change touches a user flow, also run the matching e2e suite. Each needs a fresh server on :8787 and `vite preview` on :4173 (see `AGENTS.md`). Report pass or fail with the failing output.
+6. **Run the tests.** Run `npm --prefix <absolute repo root> test --workspaces` and `npm --prefix <absolute repo root> run typecheck --workspaces`. If the change touches a user flow, also run the matching e2e suite. Each needs a fresh server on :8787 and `vite preview` on :4173 (see `AGENTS.md`). Report pass or fail with the failing output.
 
 ## Report
 
